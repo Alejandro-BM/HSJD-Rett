@@ -31,9 +31,9 @@ fprintf('* READING SESSIONS\n');
 fprintf('  FILE:   %s\n', nomFitxer);
 %fprintf('  LINES:  %d\n\n', comptarLinies(fullfile(rutaFitxer, nomFitxer)));
 
-idFitxer = fopen(fullfile(rutaFitxer, nomFitxer), 'rt');
+idFitxer = fopen(fullfile(rutaFitxer, nomFitxer), 'rt')
 %assert(idFitxer ~= -1, generatemsgid(mfilename), 'No s''ha pogut obrir: %s', fullfile(rutaFitxer, nomFitxer));
-cleanupObj = onCleanup(@() fclose(idFitxer)); % Per tancar el fitxer un cop acabada la funci贸
+%cleanupObj = onCleanup(@() fclose(idFitxer)); % Per tancar el fitxer un cop acabada la funci贸
 
 
 %% LLEGIM FITXER LINIA A LINIA
@@ -49,23 +49,47 @@ cleanupObj = onCleanup(@() fclose(idFitxer)); % Per tancar el fitxer un cop acab
 % Esto hace un total de 25 datos por cada l韓ea.
 
 
+% % %% LLEGIM DADES DE CADA SESSIO (EN BUCLE FINS A ACABAR)
+% % ses = 1;
+% % while ~feof(idFitxer)
+% %   try
+% %     fprintf('  - sessi贸 %02d', ses);
+% %     
+% %     session = textscan(idFitxer, '%f', 25, 'delimiter', '\n');
+% %     sessionData = session{1};
+% %     clear('session');
+% %     
+% %     matriz_session(ses,:) = sessionData;
+% %     
+% %     ses = ses + 1;
+% %   catch
+% %   end
+% % end
+% % 
+% % patient = matriz_session;
+% % 
+% % clear matriz_sesions ses idFitxer session
+
+
 %% LLEGIM DADES DE CADA SESSIO (EN BUCLE FINS A ACABAR)
-ses = 1;
-while ~feof(idFitxer)
-  try
-    % fprintf('  - sessi贸 %02d', ses);
+
+    session = textscan(idFitxer, '%f', 1200000000, 'delimiter', '\n');
+
     
-    session = textscan(idFitxer, '%f', 25, 'delimiter', '\n');
     sessionData = session{1};
     clear('session');
     
-    matriz_session(ses,:) = sessionData;
+    sizeData = size(sessionData,1)/25;
     
-    ses = ses + 1;
-  catch
-  end
-end
+    matriz_session = reshape(sessionData,[25,sizeData])';
+    
+    size(matriz_session)
+    
 
 patient = matriz_session;
 
+fclose(idFitxer);
 clear matriz_sesions ses idFitxer session
+
+
+
