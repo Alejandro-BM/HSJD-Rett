@@ -7,8 +7,8 @@ clearvars; close all; home;
 % Carpetas
 [dir_datos, ~, dir_result] = config_function();
 
-% Log y contar tiempo de ejecucion
-inicio = inicio_de_programa(mfilename);
+% % Log y contar tiempo de ejecucion
+%inicio = inicio_de_programa(mfilename);
 
 
 
@@ -23,8 +23,13 @@ filtro = generar_filtro__0_5_45(fs);
 % Se leen los sujetos:
 % Para leer los nombres de los archivos de una carpeta
 % Se crea una estructura 'sujetos' donde en la variable name se guardan los nombres de los archivos
-    sujetos_=dir([dir_datos 'easy/']); 
-    %sujetos_=dir([dir_datos 'cleaned_150000/selected/']); %
+    %sujetos_=dir([dir_datos 'easy/']); 
+    sujetos_=dir([dir_datos 'easy/Archivo_unico/']);
+    sujetos_=dir([dir_datos 'easy/Varios_archivos/']);
+    sujetos_=dir([dir_datos 'datos_mat/']);
+    
+
+    %mkdir([dir_datos 'datos_mat/Varios_archivos/']);
 
 % Para eliminar el directorio punto y dos puntos
 sujetos=sujetos_(3:end,:);
@@ -33,7 +38,8 @@ sujetos=sujetos_(3:end,:);
 % SE LEEN LOS DATOS Y SE GUARDAN EN FORMATO ".mat"
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %{
-for nsuj = 1 %: length(sujetos),
+for nsuj = 1 : length(sujetos),
+    nsuj
     % Se crea una variable cabecera "headers", con datos relevantes. Se debería
     % optimizar leyendo esta información del archivo '.info'
     headers = struct();
@@ -42,7 +48,8 @@ for nsuj = 1 %: length(sujetos),
         headers.EEG_units = 'nV';
         headers.EEG_channels = {'T8','F8','F4','C4','P4','Fz','Cz','Pz','P3','C3','F3','F7','T7'} ; % En el orden en el que figuran en la matriz de datos
 
-    aux_data = llegir_sessions_easy(sujetos(nsuj).name, [dir_datos 'easy/']);  
+    %aux_data = llegir_sessions_easy(sujetos(nsuj).name, [dir_datos 'easy/Archivo_unico/']);  
+    aux_data = llegir_sessions_easy(sujetos(nsuj).name, [dir_datos 'easy/Varios_archivos/']);  
 
     % Nos quedamos solamente con las columnas de interés
     EEG_data = [aux_data(:,2:6), aux_data(:,9:10), aux_data(:,14:19)];
@@ -50,17 +57,19 @@ for nsuj = 1 %: length(sujetos),
     Triger_data = aux_data(:,24);
     Time_course_data = aux_data(:,25);
 
-    save([dir_datos 'datos_mat/' sujetos(nsuj).name(1:(end-5)) '_extracted.mat'],'headers','EEG_data','Acelerometer_data','Triger_data','Time_course_data');
+    save([dir_datos 'datos_mat/Varios_archivos/' sujetos(nsuj).name(1:(end-13)) '_extracted.mat'],'headers','EEG_data','Acelerometer_data','Triger_data','Time_course_data');
 end
 %}
- 
-    
+
+
+
+   
 % PROCESADO DE LA SEÑAL DE EEG:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-for nsuj = 1 : 1 : length(sujetos),
+for nsuj = 4 % : length(sujetos),
     nsuj
 %{
-    load([dir_datos 'datos_mat/' sujetos(nsuj).name(1:(end-13)) '_extracted.mat'],'headers','EEG_data','Acelerometer_data','Triger_data','Time_course_data');
+    load([dir_datos 'datos_mat/Varios_archivos/' sujetos(nsuj).name(1:(end-14)) '_extracted.mat'],'headers','EEG_data','Acelerometer_data','Triger_data','Time_course_data','age');
   
     num_channels = size(EEG_data,2);
     % SE ORGANIZA LA INFORMACIÓN EN ÉPOCAS DE 5 s. Y SE ELIMINA EL DETREND LINEAL EN CADA ÉPOCA 
@@ -78,26 +87,26 @@ for nsuj = 1 : 1 : length(sujetos),
             filtered_senyals(:,nEpoch,nchan) = filtfilt(filtro.SOSMatrix, filtro.ScaleValues, aux_data);   
         end
     end
-    mkdir([dir_datos 'filtered/'])
-    save([dir_datos 'filtered/' num2str(nsuj) '_' sujetos(nsuj).name(1:(end-13)) '_filtered.mat'],'headers','filtered_senyals','Acelerometer_data','Triger_data','Time_course_data');     
+    mkdir([dir_result 'filtered/'])
+    save([dir_result 'filtered/' sujetos(nsuj).name(1:(end-14)) '_filtered.mat'],'headers','filtered_senyals','Acelerometer_data','Triger_data','Time_course_data','age');     
 %}
 
     % Prueba piloto de segmentación y rechazo de artefactos:
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%{    
-    load([dir_datos 'filtered/' num2str(nsuj) '_' sujetos(nsuj).name(1:(end-13)) '_filtered.mat'],'headers','filtered_senyals','Acelerometer_data','Triger_data','Time_course_data');  
+    %{    
+    load([dir_result 'filtered/' sujetos(nsuj).name(1:(end-14)) '_filtered.mat'],'headers','filtered_senyals','Acelerometer_data','Triger_data','Time_course_data','age');  
 
 %     factor_k = 4;
 %     min_canales = 2;
 % 
-%     senyal_EEG_completa = reshape(filtered_senyals,[size(filtered_senyals,1)*size(filtered_senyals,2),size(filtered_senyals,3)]);
+     senyal_EEG_completa = reshape(filtered_senyals,[size(filtered_senyals,1)*size(filtered_senyals,2),size(filtered_senyals,3)]);
 %     media_f = median(senyal_EEG_completa,1);
 %     std_f = std(senyal_EEG_completa,0,1);
        
     % Se segmenta la señal en cada canal en segmentos de 5 segundos
 %     umbral = media_f + factor_k * std_f;
     umbral = 150000;
-    
+    min_canales = 2;
    
     % Se inicializan las matrices de datos
     matriz_rechazo = zeros(size(filtered_senyals,2),size(filtered_senyals,3));
@@ -119,11 +128,11 @@ for nsuj = 1 : 1 : length(sujetos),
         end
     end
 
-    mkdir([dir_datos 'cleaned_150000/']);
-    save([dir_datos 'cleaned_150000/' num2str(nsuj) '_' sujetos(nsuj).name(1:(end-13)) '_cleaned_k_' num2str(factor_k) '.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal');
+    mkdir([dir_result 'cleaned_150000/']);
+    save([dir_result 'cleaned_150000/' sujetos(nsuj).name(1:(end-14)) '_cleaned.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal','age');
 
 %     mkdir([dir_datos 'cleaned_4-std/']);
-%     save([dir_datos 'cleaned_4-std/' num2str(nsuj) '_' sujetos(nsuj).name(1:(end-13)) '_cleaned_k_' num2str(factor_k) '.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal');
+%     save([dir_datos 'cleaned_4-std/' num2str(nsuj) '_' sujetos(nsuj).name(1:(end-13)) '_cleaned_k_' num2str(factor_k) '.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal','age');
 
     
     n_artefactos(nsuj) = artefactos;
@@ -145,11 +154,11 @@ for nsuj = 1 : 1 : length(sujetos),
     plot(clean_seynal_EEG_completa(:,7),'r')
     ylim([-500000 500000])
     legend('Senyal original', 'Senyal tras el rechazo de artefactos')
-    title(['Umbral:  ' num2str(umbral(7))]);
-    %title(['Umbral:  ' num2str(umbral)]);
+    %title(['Umbral:  ' num2str(umbral(7))]);
+    title(['Umbral:  ' num2str(umbral)]);
     
-    mkdir([dir_datos 'Figures/Artefactos_150000/'])
-    nombre_figure = [dir_datos 'Figures/Artefactos_150000/' num2str(nsuj) '_Limpieza_Artefactos_' sujetos(nsuj).name(1:end-14)];
+    mkdir([dir_result 'Figures/Artefactos_150000/'])
+    nombre_figure = [dir_result 'Figures/Artefactos_150000/' '_Limpieza_Artefactos_' sujetos(nsuj).name(1:end-14)];
     
 %     mkdir([dir_datos 'Figures/Artefactos_4-std/'])
 %     nombre_figure = [dir_datos 'Figures/Artefactos_4-std/' num2str(nsuj) '_Limpieza_Artefactos_' sujetos(nsuj).name(1:end-14)];
@@ -160,6 +169,8 @@ for nsuj = 1 : 1 : length(sujetos),
     clear EEG_data filtered filtered_senyals clean_signal;
 %}
 end
+
+
 
 % % % % data_artifacts = [total_epochs; valid_epochs; n_artefactos; Porcentaje_artefactos];
 % % % % save([dir_datos 'Figures/Artefactos_150000/info_artefactos.mat','data_artifacts']);
@@ -199,13 +210,17 @@ end
 % valor que generalmente es 6 o 7. Por lo tanto pienso que está muestra 
 % diferente de 0 se utiliza para marcar el momento del cambio de tarea.
 
+long_epoch = 5 * fs;
 NFFT = 4096;
-for nsuj =  1  : length(sujetos),
+for nsuj =   9  : length(sujetos),
     nsuj
 %%{    
 
 %    load([dir_datos 'cleaned_150000/selected/' num2str(nsuj) '_' sujetos(nsuj).name(1:(end-13)) '_cleaned_k_' num2str(factor_k) '.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal');
-    load([dir_datos 'cleaned_150000/selected/' sujetos(nsuj).name(1:(end-16)) '_cleaned_k_' num2str(factor_k) '.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal');
+    
+    %load([dir_datos 'cleaned_150000/selected/' sujetos(nsuj).name(1:(end-14)) '_cleaned.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal');
+    load([dir_result 'cleaned_150000/' sujetos(nsuj).name(1:(end-14)) '_cleaned.mat'],'headers','Acelerometer_data','Triger_data','Time_course_data','clean_signal','age');
+
     %load([dir_datos 'datos_mat/cleaned/selected/' sujetos(nsuj).name]);  
     
     % Se identifican las muestras que son diferentes de 0
@@ -351,14 +366,14 @@ FINAL_epochs = FINAL_data;
      mean_PSD.FINAL = squeeze(nanmean(FINAL_PSD,2));
      mean_Norm_PSD.FINAL = squeeze(nanmean(FINAL_Norm_PSD,2));
 
-     mkdir([dir_datos 'PSD/']);
-     save([dir_datos 'PSD/' sujetos(nsuj).name(1:(end-16)) '_PSD.mat'], 'mean_PSD', 'mean_Norm_PSD');
+     mkdir([dir_result 'PSD/']);
+     save([dir_result 'PSD/' sujetos(nsuj).name(1:(end-14)) '_PSD.mat'], 'mean_PSD', 'mean_Norm_PSD','age');
      
-load([dir_datos 'PSD/' sujetos(nsuj).name(1:(end-16)) '_PSD.mat'], 'mean_PSD', 'mean_Norm_PSD');
+load([dir_result 'PSD/' sujetos(nsuj).name(1:(end-14)) '_PSD.mat'], 'mean_PSD', 'mean_Norm_PSD','age');
      
 
 % Se representan las figuras del espectro:     
-mkdir([dir_datos 'Figures/PSD/']);
+mkdir([dir_result 'Figures/PSD/']);
 %frequency = linspace(-250,250,2048);
 frequency = linspace(-250,250,NFFT);
 
@@ -407,7 +422,7 @@ figure
     xlim([0,50])
     title('Fase Final')
     
-    nombre_figure = [dir_datos 'Figures/PSD/PSD_' sujetos(nsuj).name(1:(end-16))];
+    nombre_figure = [dir_result 'Figures/PSD/PSD_' sujetos(nsuj).name(1:(end-14))];
     print('-djpeg', nombre_figure)
     
 figure
@@ -419,13 +434,13 @@ figure
     title('PSD para cada una de las fases')
     legend('Fase Inicial', 'Fase de Actividad', 'Fase Final')
     
-    nombre_figure = [dir_datos 'Figures/PSD/PSD_junto_' sujetos(nsuj).name(1:(end-16))];
+    nombre_figure = [dir_result 'Figures/PSD/PSD_junto_' sujetos(nsuj).name(1:(end-14))];
     print('-djpeg', nombre_figure)
 
 
     % Se calcula la potencia relativa:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-mkdir([dir_datos 'Parameters/']);
+mkdir([dir_result 'Parameters/']);
 
 PotenciaRelativa_Absoluta.INICIAL = CalculoAP(INICIAL_PSD,frequency,[1 29],[1 4; 4 7; 8 13; 14 29]);
 PotenciaRelativa_Norm.INICIAL = CalculoRP(INICIAL_Norm_PSD,frequency,[1 29],[1 4; 4 7; 8 13; 14 29]);
@@ -436,19 +451,19 @@ PotenciaRelativa_Norm.ACTIVIDAD = CalculoRP(ACTIVIDAD_Norm_PSD,frequency,[1 29],
 PotenciaRelativa_Absoluta.FINAL = CalculoAP(FINAL_PSD,frequency,[1 29],[1 4; 4 7; 8 13; 14 29]);
 PotenciaRelativa_Norm.FINAL = CalculoRP(FINAL_Norm_PSD,frequency,[1 29],[1 4; 4 7; 8 13; 14 29]);
 
-save([dir_datos 'Parameters/' sujetos(nsuj).name(1:(end-16)) '_Parameters_PSD.mat'], 'PotenciaRelativa_Absoluta', 'PotenciaRelativa_Norm');
+save([dir_result 'Parameters/' sujetos(nsuj).name(1:(end-14)) '_Parameters_PSD.mat'], 'PotenciaRelativa_Absoluta', 'PotenciaRelativa_Norm','age');
 
 MF.INICIAL = CalculoMF(INICIAL_PSD,frequency,[1 29],[],[]);
 MF.ACTIVIDAD = CalculoMF(ACTIVIDAD_PSD,frequency,[1 29],[]);
 MF.FINAL = CalculoMF(FINAL_PSD,frequency,[1 29],[]);
 
-save([dir_datos 'Parameters/' sujetos(nsuj).name(1:(end-16)) '_Parameters_PSD.mat'], 'MF','-append');
+save([dir_result 'Parameters/' sujetos(nsuj).name(1:(end-14)) '_Parameters_PSD.mat'], 'MF','-append');
 
 SE.INICIAL = CalculoSE(INICIAL_PSD,frequency,[1 29],[]);
 SE.ACTIVIDAD = CalculoSE(ACTIVIDAD_PSD,frequency,[1 29],[]);
 SE.FINAL = CalculoSE(FINAL_PSD,frequency,[1 29],[]);
 
-save([dir_datos 'Parameters/' sujetos(nsuj).name(1:(end-16)) '_Parameters_PSD.mat'], 'SE','-append');
+save([dir_result 'Parameters/' sujetos(nsuj).name(1:(end-14)) '_Parameters_PSD.mat'], 'SE','-append');
 
 
 % Se calcula el BSI
@@ -489,7 +504,7 @@ mean_BSI{1} = mean([m_BSI_T7_8{1}, m_BSI_F7_8{1}, m_BSI_F3_4{1}, m_BSI_C3_4{1}, 
 mean_BSI{2} = mean([m_BSI_T7_8{2}, m_BSI_F7_8{2}, m_BSI_F3_4{2}, m_BSI_C3_4{2}, m_BSI_P3_4{2}],2);
 mean_BSI{3} = mean([m_BSI_T7_8{3}, m_BSI_F7_8{3}, m_BSI_F3_4{3}, m_BSI_C3_4{3}, m_BSI_P3_4{3}],2);
 
-save([dir_datos 'Parameters/' sujetos(nsuj).name(1:(end-16)) '_Parameters_PSD.mat'], 'm_BSI_T7_8', 'm_BSI_F7_8','m_BSI_F3_4','m_BSI_C3_4','m_BSI_P3_4','mean_BSI','-append');
+save([dir_result 'Parameters/' sujetos(nsuj).name(1:(end-14)) '_Parameters_PSD.mat'], 'm_BSI_T7_8', 'm_BSI_F7_8','m_BSI_F3_4','m_BSI_C3_4','m_BSI_P3_4','mean_BSI','-append');
 
 %}
 end
